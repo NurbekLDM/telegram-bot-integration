@@ -29,7 +29,7 @@ bot.onText(/\/start/, (msg) => {
 
 app.listen(3000, () => {
     console.log('Server 3000-portda ishga tushdi!');
-    bot.setWebHook('https://your-vercel-app.vercel.app/webhook');
+    bot.setWebHook('https://telegram-bot-integration.vercel.app//webhook');
   });
 
 // Vercel uchun eksport
