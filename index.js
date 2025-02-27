@@ -27,11 +27,11 @@ bot.onText(/\/start/, (msg) => {
   bot.sendMessage(chatId, 'Salom! Portfolio saytimni ochish uchun "Open" tugmasini bosing.', opts);
 });
 
-app.listen(3000, () => {
-    console.log('Server 3000-portda ishga tushdi!');
-    bot.setWebHook('https://telegram-bot-integration.vercel.app//webhook');
-  });
 
-// Vercel uchun eksport
+
+    bot.setWebHook('https://telegram-bot-integration.vercel.app//webhook');
+
+
+
 module.exports = app;
 
