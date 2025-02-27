@@ -3,7 +3,7 @@ const express = require('express');
 const app = express();
 
 const token = '7719771424:AAFRN7VsbLnEKZZ8av7htNeGvlwEJqHnSt8';
-const portfolioUrl = 'www.nurbek.codes'
+const portfolioUrl = 'https://kun.uz'
 const bot = new TelegramBot(token);
 
 app.use(express.json());
