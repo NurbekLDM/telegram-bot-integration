@@ -1,7 +1,5 @@
 const TelegramBot = require('node-telegram-bot-api');  
 
-const token = '7719771424:AAFRN7VsbLnEKZZ8av7htNeGvlwEJqHnSt8';  
-const portfolioUrl = 'https://nurbek.codes';  
 
 const token = '7719771424:AAFRN7VsbLnEKZZ8av7htNeGvlwEJqHnSt8';
 const portfolioUrl = 'https://nurbek.codes';
