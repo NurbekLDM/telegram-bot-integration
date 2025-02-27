@@ -1,43 +1,49 @@
 const TelegramBot = require('node-telegram-bot-api');
+const express = require('express');
+
+const app = express();
+app.use(express.json()); // JSON requestlarni qabul qilish uchun
 
 const token = '7719771424:AAFRN7VsbLnEKZZ8av7htNeGvlwEJqHnSt8';
 const portfolioUrl = 'https://nurbek.codes';
+const webhookUrl = 'https://telegram-bot-integration.vercel.app/api/webhook';
 
-// Bot yaratish
-const bot = new TelegramBot(token, { polling: true });
+// Botni webhook rejimida yaratish
+const bot = new TelegramBot(token, { webHook: true });
 
-// /start buyrug'i
+// Webhook URL ni sozlash
+bot.setWebHook(webhookUrl).then(() => {
+  console.log(`✅ Webhook set to: ${webhookUrl}`);
+}).catch(err => console.error('❌ Webhook error:', err));
+
+// /start buyrug'i uchun Open App tugmasi bilan javob
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
   const opts = {
     reply_markup: {
       inline_keyboard: [
         [{ text: 'Open App', web_app: { url: portfolioUrl } }]
-      ],
-      resize_keyboard: true, // Klaviaturani moslashuvchan qilish
-      one_time_keyboard: false // Klaviatura chatda doim qolishi uchun
+      ]
     }
   };
   bot.sendMessage(chatId, 'Salom! "Open App" tugmasini bosing.', opts);
 });
 
-// Vercel serverless function handler (Agar webhook ishlatayotgan bo‘lsangiz)
-module.exports = async (req, res) => {
-  if (req.method === 'GET') {
-    return res.status(200).send('Telegram bot webhook is active');
+// Telegramdan kelgan webhook so‘rovlarini qabul qilish
+app.post('/api/webhook', (req, res) => {
+  try {
+    bot.processUpdate(req.body);
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('❌ Webhook error:', error);
+    res.sendStatus(500);
   }
+});
 
-  if (req.method === 'POST') {
-    try {
-      const data = req.body;
-      console.log('Webhook data received:', data);
-      bot.processUpdate(data);
-      return res.status(200).json({ ok: true });
-    } catch (error) {
-      console.error('Error processing update:', error);
-      return res.status(500).json({ error: 'Failed to process update' });
-    }
-  }
+// Webhookning faoliyatini tekshirish uchun GET route
+app.get('/api/webhook', (req, res) => {
+  res.send('✅ Telegram bot webhook is active');
+});
 
-  return res.status(405).json({ error: 'Method not allowed' });
-};
+// Vercel uchun eksport
+module.exports = app;
