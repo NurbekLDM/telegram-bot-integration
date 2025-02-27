@@ -2,7 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const express = require('express');
 const app = express();
 
-const token = 'YOUR_BOT_TOKEN_HERE';
+const token = '7719771424:AAFRN7VsbLnEKZZ8av7htNeGvlwEJqHnSt8';
 const portfolioUrl = 'https://nurbek.codes'; // URL
 const bot = new TelegramBot(token);
 
