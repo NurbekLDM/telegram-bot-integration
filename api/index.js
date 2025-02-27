@@ -3,7 +3,7 @@ const express = require('express');
 const app = express();
 
 const token = '7719771424:AAFRN7VsbLnEKZZ8av7htNeGvlwEJqHnSt8';
-const portfolioUrl = 'www.nurbek.codes';
+const portfolioUrl = 'https://nurbek.codes/'
 const bot = new TelegramBot(token);
 
 app.use(express.json());
@@ -11,8 +11,13 @@ app.use(express.json());
 // Webhook yo'li
 app.post('/webhook', (req, res) => {
   console.log('Webhook so‘rovi qabul qilindi:', req.body);
-  bot.processUpdate(req.body);
-  res.sendStatus(200);
+  try {
+    bot.processUpdate(req.body);
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Xatolik:', error);
+    res.status(500).send('Server xatosi');
+  }
 });
 
 // /start buyrug'i
