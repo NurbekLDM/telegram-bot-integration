@@ -1,24 +1,19 @@
 {
-  "name": "nurbek-codes",
+  "name": "telegram-bot-integration",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Telegram bot integration with Vercel",
+  "main": "api/webhook/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node api/webhook/index.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/NurbekLDM/telegram-bot-integration.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/NurbekLDM/telegram-bot-integration/issues"
-  },
-  "homepage": "https://github.com/NurbekLDM/telegram-bot-integration#readme",
   "dependencies": {
-    "express": "^4.21.2",
-    "node-telegram-bot-api": "^0.61.0"
+    "node-telegram-bot-api": "^0.64.0",
+    "express": "^4.18.2",
+    "wrappy": "^1.0.2",
+    "once": "^1.4.0",
+    "pump": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
