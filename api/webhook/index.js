@@ -11,7 +11,7 @@ bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
   const opts = {
     reply_markup: {
-      keyboard: [
+      inline_keyboard: [
         [{ text: 'Open App', web_app: { url: portfolioUrl } }]
       ],
       resize_keyboard: true, // Klaviaturani moslashuvchan qilish
