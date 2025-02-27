@@ -42,7 +42,7 @@ module.exports = async (req, res) => {
   }
   // Xabarni yuborish  
   bot.sendMessage(chatId, message, opts);  
-});  
+};  
 
   if (req.method === 'POST') {
     try {
@@ -71,4 +71,4 @@ module.exports = async (req, res) => {
 };
   // GET metodi uchun javob  
   return res.status(200).send('Telegram bot is running');  
-};  
+});  
