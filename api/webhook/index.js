@@ -33,6 +33,8 @@ bot.onText(/\/start/, (msg) => {
 app.post('/api/webhook', (req, res) => {
   try {
     bot.processUpdate(req.body);
+    const message  = req.body;
+    console.log('✉️ Message:', message);
     res.sendStatus(200);
   } catch (error) {
     console.error('❌ Webhook error:', error);
