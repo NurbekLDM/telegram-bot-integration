@@ -1,28 +1,14 @@
 const TelegramBot = require('node-telegram-bot-api');
-const express = require('express');
-const app = express();
+
 
 const token = '7719771424:AAFRN7VsbLnEKZZ8av7htNeGvlwEJqHnSt8';
-const portfolioUrl = 'https://kun.uz'
+const portfolioUrl = 'https://nurbek.codes';
+
+// Bot yaratish
 const bot = new TelegramBot(token);
-
-app.use(express.json());
-
-// Webhook yo'li
-app.post('/webhook', (req, res) => {
-  console.log('Webhook so‘rovi qabul qilindi:', req.body);
-  try {
-    bot.processUpdate(req.body);
-    res.sendStatus(200);
-  } catch (error) {
-    console.error('Xatolik:', error);
-    res.status(500).send('Server xatosi');
-  }
-});
 
 // /start buyrug'i
 bot.onText(/\/start/, (msg) => {
-  console.log('Start buyrug‘i qabul qilindi:', msg);
   const chatId = msg.chat.id;
   const opts = {
     reply_markup: {
@@ -34,4 +20,18 @@ bot.onText(/\/start/, (msg) => {
   bot.sendMessage(chatId, 'Salom! Portfolio saytimni ochish uchun "Open" tugmasini bosing.', opts);
 });
 
-module.exports = app;
+// Vercel serverless function handler
+module.exports = async (req, res) => {
+  if (req.method === 'POST') {
+    try {
+      bot.processUpdate(req.body);
+      return res.status(200).send('OK');
+    } catch (error) {
+      console.error('Xatolik:', error);
+      return res.status(500).send('Server xatosi');
+    }
+  }
+  
+  // GET metodi uchun javob
+  return res.status(200).send('Telegram bot is running');
+};
