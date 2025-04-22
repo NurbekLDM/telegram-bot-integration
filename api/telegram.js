@@ -1,8 +1,8 @@
+require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const { message } = require('telegraf/filters');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
 
 // Configuration variables
 const API_TOKEN = process.env.API_TOKEN;
@@ -28,7 +28,7 @@ function loadKeywordResponses() {
     }
   } catch (e) {
     console.error('Error loading keyword responses:', e);
-  }
+  } 
 }
 
 function loadResponses() {
@@ -211,7 +211,8 @@ module.exports = async (req, res) => {
 loadKeywordResponses();
 loadResponses();
 
-// For local testing with long polling
-if (process.env.NODE_ENV === 'local') {
+console.log(process.env.NODE_ENV);
+if (process.env.NODE_ENV == 'local') {
   bot.launch().then(() => console.log('Bot running locally with long polling...'));
+  console.log('Bot ishga tushirishga harakat qildi.'); 
 }
