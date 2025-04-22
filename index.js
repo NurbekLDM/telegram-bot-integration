@@ -212,20 +212,48 @@ bot.on('message', async (ctx) => {
 loadKeywordResponses();
 loadResponses();
 
-// Set up webhook handler
-bot.telegram.setWebhook(`https://${process.env.VERCEL_URL || 'your-vercel-app.vercel.app'}/api/webhook`);
 
-// Export the webhook handler for Vercel
 module.exports = async (req, res) => {
+  // Logging kelgan so'rovlar
+  console.log('Webhook request received', {
+    method: req.method,
+    path: req.url,
+    headers: req.headers,
+    body: req.body ? 'Has body' : 'No body'
+  });
+
   try {
+    // POST so'rovlarni qayta ishlash
     if (req.method === 'POST') {
+      console.log('Processing Telegram update', JSON.stringify(req.body || {}).slice(0, 100));
+      
+      if (!req.body) {
+        return res.status(400).send('No request body');
+      }
+      
+      // Update'ni Telegraf orqali qayta ishlash
       await bot.handleUpdate(req.body);
-      res.status(200).send('OK');
+      return res.status(200).send('OK');
+    } 
+    // GET so'rovlar uchun diagnostika sahifasi
+    else if (req.method === 'GET') {
+      return res.status(200).send(`
+        <html>
+          <body>
+            <h1>Telegram Bot Webhook is active!</h1>
+            <p>API Token available: ${Boolean(process.env.API_TOKEN)}</p>
+            <p>Admin IDs: ${process.env.ADMIN_IDS || 'Not set'}</p>
+            <p>Bot is ${botActive ? 'active' : 'inactive'}</p>
+            <p>Loaded ${keywordResponses.length} keyword responses</p>
+            <p>Loaded ${questionReplies.length} question replies</p>
+          </body>
+        </html>
+      `);
     } else {
-      res.status(200).send('Webhook is working!');
+      return res.status(405).send('Method not allowed');
     }
   } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(500).send('Error processing webhook');
+    console.error('Error in webhook handler:', error);
+    return res.status(500).send(`Error: ${error.message}`);
   }
 };
