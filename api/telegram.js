@@ -56,10 +56,10 @@ async function loadResponses() {
 async function storeQAPair(question, answer) {
   try {
     const newQAPair = { question, answer, timestamp: Date.now() };
-    let qaPairsJSON = await redis.get('qa_pairs');
-    let qaPairs = qaPairsJSON ? JSON.parse(qaPairsJSON) : [];
+    const qaPairsJSON = await redis.call('JSON.GET', 'qa_pairs', '.');
+    const qaPairs = qaPairsJSON ? JSON.parse(qaPairsJSON) : [];
     qaPairs.push(newQAPair);
-    await redis.set('qa_pairs', JSON.stringify(qaPairs));
+    await redis.call('JSON.SET', 'qa_pairs', '.', JSON.stringify(qaPairs));
     console.log('Stored new QA pair in Redis');
   } catch (e) {
     console.error('Error storing QA pair in Redis:', e);
