@@ -68,7 +68,7 @@ async function storeQAPair(question, answer) {
 
 async function findSimilarQuestion(text) {
   try {
-    const qaPairsJSON = await redis.get('qa_pairs');
+    const qaPairsJSON = await redis.call('JSON.GET', 'qa_pairs', '.');
     if (!qaPairsJSON) return null;
     const qaPairs = JSON.parse(qaPairsJSON);
     for (const pair of qaPairs) {
