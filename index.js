@@ -3,11 +3,13 @@ const { Telegraf } = require('telegraf');
 const { message } = require('telegraf/filters');  
 const fs = require('fs');  
 const path = require('path');  
+const express = require('express');  
+const bodyParser = require('body-parser');  
 require('dotenv').config();  
 
 // Configuration variables  
 const API_TOKEN = process.env.API_TOKEN;  
-const ADMIN_IDS = process.env.ADMIN_IDS  
+const ADMIN_IDS = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];  
 const PROXY_URL = process.env.PROXY_URL || null;  
 
 // Global variables  
@@ -15,6 +17,7 @@ let botActive = true;
 let keywordResponses = [];  
 let questionReplies = [];  
 let reactions = [];  
+let server = null;  
 
 // Data handling functions  
 function loadKeywordResponses() {  
@@ -252,7 +255,32 @@ async function main() {
   }  
 }  
 
+// Express server  
+const app = express();  
+app.use(bodyParser.json());  
+
+app.listen(3000, () => {  
+  console.log('Server is running on port 3000');  
+});  
+
 // AWS Lambda uchun handler  
 module.exports.handler = async (event) => {  
-  await main();  
+  try {  
+    await main();  
+    return {  
+      statusCode: 200,  
+      body: 'Bot ishga tushdi!'  
+    };  
+  } catch (e) {  
+    console.error(`Error in Lambda handler: ${e}`);  
+    return {  
+      statusCode: 500,  
+      body: 'Bot ishga tushirilishi mumkin emas'  
+    };  
+  } finally {  
+    // Graceful shutdown  
+    if (server) {  
+      await server.close();  
+    }  
+  }  
 };
