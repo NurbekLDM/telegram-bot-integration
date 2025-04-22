@@ -6,7 +6,7 @@ const path = require('path');
 
 // Configuration variables
 const API_TOKEN = process.env.API_TOKEN;
-const ADMIN_IDS = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
+const ADMIN_IDS = process.env.ADMIN_IDS
 const VERCEL_URL = 'https://telegram-bot-integration.vercel.app';
 const WEBHOOK_PATH = '/api/telegram';
 const WEBHOOK_URL = `${VERCEL_URL}${WEBHOOK_PATH}`;
