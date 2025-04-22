@@ -1,14 +1,12 @@
 // Import necessary modules
 const { Telegraf } = require('telegraf');
-const { message } = require('telegraf/filters');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
 // Configuration variables
-const API_TOKEN =  process.env.API_TOKEN
-const ADMIN_IDS = process.env.ADMIN_IDS;
-const PROXY_URL = process.env.PROXY_URL || null;
+const API_TOKEN = process.env.API_TOKEN;
+const ADMIN_IDS = process.env.ADMIN_IDS
 
 // Global variables
 let botActive = true;
@@ -16,60 +14,56 @@ let keywordResponses = [];
 let questionReplies = [];
 let reactions = [];
 
+// Initialize the bot
+const bot = new Telegraf(API_TOKEN);
+
 // Data handling functions
 function loadKeywordResponses() {
   try {
-    const filePath = path.join(__dirname, 'keyword_responses.json');
+    const filePath = path.join(process.cwd(), 'keyword_responses.json');
     if (fs.existsSync(filePath)) {
       const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       keywordResponses = data.map(item => [new RegExp(item.pattern, 'i'), item.response]);
       console.log(`Loaded ${keywordResponses.length} keyword responses`);
+    } else {
+      console.log('keyword_responses.json not found');
+      keywordResponses = [];
     }
   } catch (e) {
     console.error('Error loading keyword responses:', e);
+    keywordResponses = [];
   }
 }
 
 function loadResponses() {
   try {
-    const filePath = path.join(__dirname, 'responses.json');
+    const filePath = path.join(process.cwd(), 'responses.json');
     if (fs.existsSync(filePath)) {
       const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       questionReplies = data.question_replies || [];
       reactions = data.reactions || [];
       console.log(`Loaded ${questionReplies.length} question replies and ${reactions.length} reactions`);
+    } else {
+      console.log('responses.json not found');
+      questionReplies = ["Bilmadim 🤔"];
+      reactions = ["😊"];
     }
   } catch (e) {
     console.error('Error loading responses:', e);
+    questionReplies = ["Bilmadim 🤔"];
+    reactions = ["😊"];
   }
 }
 
 // QA storage and retrieval
-function storeQAPair(question, answer) {
-  try {
-    const filePath = path.join(__dirname, 'qa_pairs.json');
-    let qaPairs = [];
-    
-    if (fs.existsSync(filePath)) {
-      qaPairs = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    }
-    
-    qaPairs.push({ question, answer, timestamp: Date.now() });
-    fs.writeFileSync(filePath, JSON.stringify(qaPairs, null, 2));
-    console.log('Stored new QA pair');
-  } catch (e) {
-    console.error('Error storing QA pair:', e);
-  }
-}
-
 function findSimilarQuestion(text) {
   try {
-    const filePath = path.join(__dirname, 'qa_pairs.json');
+    const filePath = path.join(process.cwd(), 'qa_pairs.json');
     if (!fs.existsSync(filePath)) return null;
     
     const qaPairs = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     
-    // Simple similarity check (can be improved with better algorithms)
+    // Simple similarity check
     for (const pair of qaPairs) {
       if (pair.question.toLowerCase().includes(text) || 
           text.includes(pair.question.toLowerCase())) {
@@ -82,9 +76,6 @@ function findSimilarQuestion(text) {
     return null;
   }
 }
-
-// Initialize the bot
-const bot = new Telegraf(API_TOKEN);
 
 // Command handlers
 bot.command('start', async (ctx) => {
@@ -122,7 +113,7 @@ bot.command('stop', async (ctx) => {
 });
 
 // Message handler
-bot.on(message('text'), async (ctx) => {
+bot.on('text', async (ctx) => {
   try {
     // If bot is not active or the message is not in a group, return
     if (!botActive || (ctx.chat.type !== 'group' && ctx.chat.type !== 'supergroup')) {
@@ -133,15 +124,8 @@ bot.on(message('text'), async (ctx) => {
 
     // Check for replies (only for text replies)
     if (ctx.message.reply_to_message && ctx.message.reply_to_message.text) {
-      const question = ctx.message.reply_to_message.text.toLowerCase().trim();
-      const answer = ctx.message.text;
-      storeQAPair(question, answer);
-      
-      try {
-        console.log(`Stored QA pair: ${question} -> ${answer}`);
-      } catch (e) {
-        console.error(`Error sending reply: ${e}`);
-      }
+      // On serverless, we'll just log this rather than writing to file
+      console.log(`Reply detected: ${text}`);
       return;
     }
 
@@ -210,7 +194,7 @@ bot.on(message('text'), async (ctx) => {
 });
 
 // Handle non-text messages
-bot.on(message(), async (ctx) => {
+bot.on('message', async (ctx) => {
   if (ctx.message.text) return; // Skip text messages as they're handled above
   
   if (!botActive || (ctx.chat.type !== 'group' && ctx.chat.type !== 'supergroup')) {
@@ -218,32 +202,30 @@ bot.on(message(), async (ctx) => {
   }
 
   try {
-    console.log(`Replied to non-text message in chat ${ctx.chat.id}`);
+    console.log(`Received non-text message in chat ${ctx.chat.id}`);
   } catch (e) {
-    console.error(`Error sending reply: ${e}`);
+    console.error(`Error handling non-text message: ${e}`);
   }
 });
 
-// Main function
-async function main() {
-  // Load data
-  loadKeywordResponses();
-  loadResponses();
-  
-  // Start the bot
-  try {
-    console.log("Bot ishga tushdi...");
-    await bot.launch({
-      // Add proxy configuration if provided
-      telegram: PROXY_URL ? { apiRoot: PROXY_URL } : undefined
-    });
-    
-    // Enable graceful stop
-    process.once('SIGINT', () => bot.stop('SIGINT'));
-    process.once('SIGTERM', () => bot.stop('SIGTERM'));
-  } catch (e) {
-    console.error(`Error starting bot: ${e}`);
-  }
-}
+// Load data
+loadKeywordResponses();
+loadResponses();
 
-main();
+// Set up webhook handler
+bot.telegram.setWebhook(`https://${process.env.VERCEL_URL || 'your-vercel-app.vercel.app'}/api/webhook`);
+
+// Export the webhook handler for Vercel
+module.exports = async (req, res) => {
+  try {
+    if (req.method === 'POST') {
+      await bot.handleUpdate(req.body);
+      res.status(200).send('OK');
+    } else {
+      res.status(200).send('Webhook is working!');
+    }
+  } catch (error) {
+    console.error('Webhook error:', error);
+    res.status(500).send('Error processing webhook');
+  }
+};

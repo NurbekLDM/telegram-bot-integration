@@ -1,0 +1,14 @@
+[
+    {
+      "pattern": "salom",
+      "response": "Salom! Qandaysan? 😊"
+    },
+    {
+      "pattern": "qandaysan",
+      "response": "Yaxshiman, rahmat! Siz qandaysiz?"
+    },
+    {
+      "pattern": "rahmat",
+      "response": "Arzimaydi! 👍"
+    }
+  ]
