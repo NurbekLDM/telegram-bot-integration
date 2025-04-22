@@ -1,4 +1,3 @@
-// Import necessary modules
 const { Telegraf } = require('telegraf');
 const { message } = require('telegraf/filters');
 const fs = require('fs');
@@ -6,9 +5,11 @@ const path = require('path');
 require('dotenv').config();
 
 // Configuration variables
-const API_TOKEN =  process.env.API_TOKEN
-const ADMIN_IDS = process.env.ADMIN_IDS;
-const PROXY_URL = process.env.PROXY_URL || null;
+const API_TOKEN = process.env.API_TOKEN;
+const ADMIN_IDS = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
+const VERCEL_URL = 'https://telegram-bot-integration.vercel.app'; 
+const WEBHOOK_PATH = '/api/telegram'; 
+const WEBHOOK_URL = `${VERCEL_URL}${WEBHOOK_PATH}`;
 
 // Global variables
 let botActive = true;
@@ -16,7 +17,7 @@ let keywordResponses = [];
 let questionReplies = [];
 let reactions = [];
 
-// Data handling functions
+// Data handling functions (keep your existing functions)
 function loadKeywordResponses() {
   try {
     const filePath = path.join(__dirname, 'keyword_responses.json');
@@ -44,16 +45,13 @@ function loadResponses() {
   }
 }
 
-// QA storage and retrieval
 function storeQAPair(question, answer) {
   try {
     const filePath = path.join(__dirname, 'qa_pairs.json');
     let qaPairs = [];
-    
     if (fs.existsSync(filePath)) {
       qaPairs = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     }
-    
     qaPairs.push({ question, answer, timestamp: Date.now() });
     fs.writeFileSync(filePath, JSON.stringify(qaPairs, null, 2));
     console.log('Stored new QA pair');
@@ -66,13 +64,9 @@ function findSimilarQuestion(text) {
   try {
     const filePath = path.join(__dirname, 'qa_pairs.json');
     if (!fs.existsSync(filePath)) return null;
-    
     const qaPairs = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    
-    // Simple similarity check (can be improved with better algorithms)
     for (const pair of qaPairs) {
-      if (pair.question.toLowerCase().includes(text) || 
-          text.includes(pair.question.toLowerCase())) {
+      if (pair.question.toLowerCase().includes(text) || text.includes(pair.question.toLowerCase())) {
         return pair.answer;
       }
     }
@@ -86,11 +80,10 @@ function findSimilarQuestion(text) {
 // Initialize the bot
 const bot = new Telegraf(API_TOKEN);
 
-// Command handlers
+// Command handlers (keep your existing handlers)
 bot.command('start', async (ctx) => {
   try {
-    // Check if the user is an admin
-    if (ADMIN_IDS.length > 0 && ADMIN_IDS.includes(ctx.from.id)) {
+    if (ADMIN_IDS.length > 0 && ADMIN_IDS.includes(String(ctx.from.id))) {
       if (!botActive) {
         botActive = true;
         await ctx.reply("Bot aktivlashtirildi. Endi xabarlarni qayta ishlayapti.");
@@ -98,7 +91,6 @@ bot.command('start', async (ctx) => {
         return;
       }
     }
-    // Send the standard start message
     await ctx.reply("Salom! Men sizga yordam berish uchun tayyorman. Savollaringizni yozing yoki o'zimni qiziqtiradigan narsalarni so'rang 😊");
   } catch (e) {
     console.error(`Error in /start handler: ${e}`);
@@ -107,8 +99,7 @@ bot.command('start', async (ctx) => {
 
 bot.command('stop', async (ctx) => {
   try {
-    // Check if the user is an admin
-    if (ADMIN_IDS.length > 0 && !ADMIN_IDS.includes(ctx.from.id)) {
+    if (ADMIN_IDS.length > 0 && !ADMIN_IDS.includes(String(ctx.from.id))) {
       await ctx.reply("Sizga bu buyruqni bajarish ruxsat etilmagan.");
       console.log(`Unauthorized /stop attempt by user ${ctx.from.id}`);
       return;
@@ -121,36 +112,24 @@ bot.command('stop', async (ctx) => {
   }
 });
 
-// Message handler
+// Message handler (keep your existing handler)
 bot.on(message('text'), async (ctx) => {
   try {
-    // If bot is not active or the message is not in a group, return
     if (!botActive || (ctx.chat.type !== 'group' && ctx.chat.type !== 'supergroup')) {
       return;
     }
-
     const text = ctx.message.text.toLowerCase().trim();
-
-    // Check for replies (only for text replies)
     if (ctx.message.reply_to_message && ctx.message.reply_to_message.text) {
       const question = ctx.message.reply_to_message.text.toLowerCase().trim();
       const answer = ctx.message.text;
       storeQAPair(question, answer);
-      
-      try {
-        console.log(`Stored QA pair: ${question} -> ${answer}`);
-      } catch (e) {
-        console.error(`Error sending reply: ${e}`);
-      }
+      console.log(`Stored QA pair: ${question} -> ${answer}`);
       return;
     }
-
-    // Check for spam
     const spamPatterns = [
       /http[s]?:\/\/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+/,
       /t\.me\//
     ];
-
     if (spamPatterns.some(pattern => pattern.test(text))) {
       try {
         await ctx.deleteMessage();
@@ -160,8 +139,6 @@ bot.on(message('text'), async (ctx) => {
       }
       return;
     }
-
-    // Look for similar questions in stored QA pairs
     const storedAnswer = findSimilarQuestion(text);
     if (storedAnswer) {
       try {
@@ -172,8 +149,6 @@ bot.on(message('text'), async (ctx) => {
       }
       return;
     }
-
-    // Check for keywords
     for (const [pattern, response] of keywordResponses) {
       if (pattern.test(text)) {
         try {
@@ -185,19 +160,15 @@ bot.on(message('text'), async (ctx) => {
         return;
       }
     }
-
-    // Check for general questions
     const questionPattern = /(mi\b|\?|kim\b|nima\b|qachon\b|qayerda\b|nega\b|qanday\b)$/i;
     if (questionPattern.test(text)) {
       try {
-        let response = questionReplies.length > 0 
-          ? questionReplies[Math.floor(Math.random() * questionReplies.length)] 
+        let response = questionReplies.length > 0
+          ? questionReplies[Math.floor(Math.random() * questionReplies.length)]
           : "Bilmadim 🤔";
-        
         if (reactions.length > 0 && Math.random() < 0.3) {
           response += ` ${reactions[Math.floor(Math.random() * reactions.length)]}`;
         }
-        
         await ctx.reply(response);
         console.log(`Replied with general question response in chat ${ctx.chat.id}`);
       } catch (e) {
@@ -209,41 +180,34 @@ bot.on(message('text'), async (ctx) => {
   }
 });
 
-// Handle non-text messages
-bot.on(message(), async (ctx) => {
-  if (ctx.message.text) return; // Skip text messages as they're handled above
-  
-  if (!botActive || (ctx.chat.type !== 'group' && ctx.chat.type !== 'supergroup')) {
-    return;
-  }
-
+// Vercel serverless function
+module.exports = async (req, res) => {
   try {
-    console.log(`Replied to non-text message in chat ${ctx.chat.id}`);
-  } catch (e) {
-    console.error(`Error sending reply: ${e}`);
-  }
-});
+    // Handle POST requests from Telegram webhook
+    if (req.method === 'POST') {
+      await bot.handleUpdate(req.body); // Process Telegram update
+      return res.status(200).json({ message: 'OK' });
+    }
 
-// Main function
-async function main() {
-  // Load data
-  loadKeywordResponses();
-  loadResponses();
-  
-  // Start the bot
-  try {
-    console.log("Bot ishga tushdi...");
-    await bot.launch({
-      // Add proxy configuration if provided
-      telegram: PROXY_URL ? { apiRoot: PROXY_URL } : undefined
-    });
-    
-    // Enable graceful stop
-    process.once('SIGINT', () => bot.stop('SIGINT'));
-    process.once('SIGTERM', () => bot.stop('SIGTERM'));
+    // Set webhook on GET request or initial invocation
+    if (req.method === 'GET') {
+      await bot.telegram.setWebhook(WEBHOOK_URL);
+      console.log(`Webhook set to ${WEBHOOK_URL}`);
+      return res.status(200).json({ message: `Webhook set to ${WEBHOOK_URL}` });
+    }
+
+    return res.status(405).json({ error: 'Method Not Allowed' });
   } catch (e) {
-    console.error(`Error starting bot: ${e}`);
+    console.error('Error in Vercel handler:', e);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
+};
+
+// Load data on startup
+loadKeywordResponses();
+loadResponses();
+
+// For local testing with long polling
+if (process.env.NODE_ENV === 'local') {
+  bot.launch().then(() => console.log('Bot running locally with long polling...'));
 }
-
-main();
