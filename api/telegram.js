@@ -7,8 +7,8 @@ require('dotenv').config();
 // Configuration variables
 const API_TOKEN = process.env.API_TOKEN;
 const ADMIN_IDS = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
-const VERCEL_URL = 'https://telegram-bot-integration.vercel.app'; 
-const WEBHOOK_PATH = '/api/telegram'; 
+const VERCEL_URL = 'https://telegram-bot-integration.vercel.app';
+const WEBHOOK_PATH = '/api/telegram';
 const WEBHOOK_URL = `${VERCEL_URL}${WEBHOOK_PATH}`;
 
 // Global variables
@@ -17,7 +17,7 @@ let keywordResponses = [];
 let questionReplies = [];
 let reactions = [];
 
-// Data handling functions (keep your existing functions)
+// Data handling functions
 function loadKeywordResponses() {
   try {
     const filePath = path.join(__dirname, 'keyword_responses.json');
@@ -46,17 +46,21 @@ function loadResponses() {
 }
 
 function storeQAPair(question, answer) {
-  try {
-    const filePath = path.join(__dirname, 'qa_pairs.json');
-    let qaPairs = [];
-    if (fs.existsSync(filePath)) {
-      qaPairs = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  if (process.env.NODE_ENV === 'local') {
+    try {
+      const filePath = path.join(__dirname, 'qa_pairs.json');
+      let qaPairs = [];
+      if (fs.existsSync(filePath)) {
+        qaPairs = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      }
+      qaPairs.push({ question, answer, timestamp: Date.now() });
+      fs.writeFileSync(filePath, JSON.stringify(qaPairs, null, 2));
+      console.log('Stored new QA pair');
+    } catch (e) {
+      console.error('Error storing QA pair:', e);
     }
-    qaPairs.push({ question, answer, timestamp: Date.now() });
-    fs.writeFileSync(filePath, JSON.stringify(qaPairs, null, 2));
-    console.log('Stored new QA pair');
-  } catch (e) {
-    console.error('Error storing QA pair:', e);
+  } else {
+    console.log('Not storing QA pair in this environment (read-only file system).');
   }
 }
 
@@ -80,7 +84,7 @@ function findSimilarQuestion(text) {
 // Initialize the bot
 const bot = new Telegraf(API_TOKEN);
 
-// Command handlers (keep your existing handlers)
+// Command handlers
 bot.command('start', async (ctx) => {
   try {
     if (ADMIN_IDS.length > 0 && ADMIN_IDS.includes(String(ctx.from.id))) {
@@ -112,7 +116,7 @@ bot.command('stop', async (ctx) => {
   }
 });
 
-// Message handler (keep your existing handler)
+// Message handler
 bot.on(message('text'), async (ctx) => {
   try {
     if (!botActive || (ctx.chat.type !== 'group' && ctx.chat.type !== 'supergroup')) {
@@ -123,7 +127,7 @@ bot.on(message('text'), async (ctx) => {
       const question = ctx.message.reply_to_message.text.toLowerCase().trim();
       const answer = ctx.message.text;
       storeQAPair(question, answer);
-      console.log(`Stored QA pair: ${question} -> ${answer}`);
+      console.log(`Attempted to store QA pair: ${question} -> ${answer}`);
       return;
     }
     const spamPatterns = [
