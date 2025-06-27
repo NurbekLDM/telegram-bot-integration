@@ -22,6 +22,12 @@ let keywordResponses = [];
 let questionReplies = [];
 let reactions = [];
 
+// Reaksiya emoji ro'yxati (Redis'dan yuklanadi yoki default ishlatiladi)
+const defaultReactions = ['👍', '❤️', '🔥', '👏', '😁', '🤔', '😮', '😢', '😮‍💨', '💯'];
+
+// Reaksiya ehtimoli (0.3 = 30%)
+const REACTION_PROBABILITY = 0.3;
+
 // Data handling functions
 async function loadKeywordResponses() {
   try {
@@ -43,13 +49,22 @@ async function loadResponses() {
     if (dataJSON) {
       const data = JSON.parse(dataJSON);
       questionReplies = data.question_replies || [];
-      reactions = data.reactions || [];
-      console.log(`Loaded ${questionReplies.length} question replies and ${reactions.length} reactions from Redis`);
+      
+      // Redis'da reactions mavjud bo'lsa o'shani ishlatish, yo'q bo'lsa default
+      if (data.reactions && Array.isArray(data.reactions) && data.reactions.length > 0) {
+        reactions = data.reactions;
+        console.log(`Loaded ${questionReplies.length} question replies and ${reactions.length} reactions from Redis`);
+      } else {
+        reactions = defaultReactions; // Default reaksiyalarni ishlatish
+        console.log(`Loaded ${questionReplies.length} question replies. Using default reactions.`);
+      }
     } else {
-      console.log('No general responses found in Redis.');
+      console.log('No general responses found in Redis. Using default reactions.');
+      reactions = defaultReactions; // Default reaksiyalarni ishlatish
     }
   } catch (e) {
     console.error('Error loading responses from Redis:', e);
+    reactions = defaultReactions; // Error bo'lsa default ishlatish
   }
 }
 
@@ -80,6 +95,26 @@ async function findSimilarQuestion(text) {
   } catch (e) {
     console.error('Error finding similar question in Redis:', e);
     return null;
+  }
+}
+
+// Random reaksiya qo'shish funksiyasi
+async function addRandomReaction(ctx) {
+  try {
+    // Faqat ma'lum ehtimol bilan reaksiya qo'shish
+    if (Math.random() > REACTION_PROBABILITY) {
+      return;
+    }
+
+    // Random reaksiya tanlash
+    const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
+    
+    // Reaksiya qo'shish
+    await ctx.setMessageReaction(randomReaction);
+    console.log(`Added reaction ${randomReaction} to message in chat ${ctx.chat.id}`);
+  } catch (e) {
+    console.error(`Error adding reaction: ${e}`);
+    // Agar reaksiya qo'shishda xatolik bo'lsa, log qilib davom etamiz
   }
 }
 
@@ -118,13 +153,62 @@ bot.command('stop', async (ctx) => {
   }
 });
 
+// Reaksiya sozlash buyrug'i (faqat adminlar uchun)
+bot.command('reactions', async (ctx) => {
+  try {
+    if (!ADMIN_IDS || !ADMIN_IDS.includes(String(ctx.from.id))) {
+      await ctx.reply("Sizga bu buyruqni bajarish ruxsat etilmagan.");
+      return;
+    }
+
+    const args = ctx.message.text.split(' ').slice(1);
+    
+    if (args.length === 0) {
+      const status = reactions.length > 0 ? 
+        `Faol reaksiyalar: ${reactions.join(' ')}` : 
+        'Hozir reaksiyalar o\'chiq';
+      await ctx.reply(status);
+      return;
+    }
+
+    if (args[0] === 'off') {
+      reactions = [];
+      const currentData = await redis.get('responses');
+      const data = currentData ? JSON.parse(currentData) : {};
+      data.reactions = [];
+      await redis.set('responses', JSON.stringify(data));
+      await ctx.reply('Reaksiyalar o\'chirildi');
+      return;
+    }
+
+    // Reaksiyalarni sozlash: /reactions 👍 ❤️ 🔥 👏
+    reactions = args;
+    const currentData = await redis.get('responses');
+    const data = currentData ? JSON.parse(currentData) : {};
+    data.reactions = reactions;
+    await redis.set('responses', JSON.stringify(data));
+    
+    await ctx.reply(`Yangi reaksiyalar sozlandi: ${reactions.join(' ')}`);
+    console.log(`Reactions updated by admin ${ctx.from.id}: ${reactions.join(' ')}`);
+  } catch (e) {
+    console.error(`Error in /reactions handler: ${e}`);
+    await ctx.reply('Xatolik yuz berdi');
+  }
+});
+
 // Message handler
 bot.on(message('text'), async (ctx) => {
   try {
     if (!botActive || (ctx.chat.type !== 'group' && ctx.chat.type !== 'supergroup')) {
       return;
     }
+
     const text = ctx.message.text.toLowerCase().trim();
+
+    // Barcha habarlarga random reaksiya qo'shish
+    await addRandomReaction(ctx);
+
+    // Reply to message logic
     if (ctx.message.reply_to_message && ctx.message.reply_to_message.text) {
       const question = ctx.message.reply_to_message.text.toLowerCase().trim();
       const answer = ctx.message.text;
@@ -132,6 +216,8 @@ bot.on(message('text'), async (ctx) => {
       console.log(`Attempted to store QA pair: ${question} -> ${answer}`);
       return;
     }
+
+    // Spam detection
     const spamPatterns = [
       /http[s]?:\/\/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+/,
       /t\.me\//
@@ -145,6 +231,8 @@ bot.on(message('text'), async (ctx) => {
       }
       return;
     }
+
+    // Stored answer lookup
     const storedAnswer = await findSimilarQuestion(text);
     if (storedAnswer) {
       try {
@@ -155,6 +243,8 @@ bot.on(message('text'), async (ctx) => {
       }
       return;
     }
+
+    // Keyword responses
     for (const [pattern, response] of keywordResponses) {
       if (pattern.test(text)) {
         try {
@@ -166,15 +256,15 @@ bot.on(message('text'), async (ctx) => {
         return;
       }
     }
+
+    // Question pattern matching
     const questionPattern = /(mi\b|\?|kim\b|nima\b|qachon\b|qayerda\b|nega\b|qanday\b)$/i;
     if (questionPattern.test(text)) {
       try {
         let response = questionReplies.length > 0
           ? questionReplies[Math.floor(Math.random() * questionReplies.length)]
           : "Bilmadim 🤔";
-        if (reactions.length > 0 && Math.random() < 0.3) {
-          response += ` ${reactions[Math.floor(Math.random() * reactions.length)]}`;
-        }
+        
         await ctx.reply(response);
         console.log(`Replied with general question response in chat ${ctx.chat.id}`);
       } catch (e) {
@@ -183,6 +273,20 @@ bot.on(message('text'), async (ctx) => {
     }
   } catch (e) {
     console.error(`Error in message handler: ${e}`);
+  }
+});
+
+// Photo, video, sticker va boshqa media turlari uchun ham reaksiya qo'shish
+bot.on(['photo', 'video', 'sticker', 'document', 'audio', 'voice'], async (ctx) => {
+  try {
+    if (!botActive || (ctx.chat.type !== 'group' && ctx.chat.type !== 'supergroup')) {
+      return;
+    }
+    
+    // Media habarlarga ham reaksiya qo'shish
+    await addRandomReaction(ctx);
+  } catch (e) {
+    console.error(`Error in media handler: ${e}`);
   }
 });
 
