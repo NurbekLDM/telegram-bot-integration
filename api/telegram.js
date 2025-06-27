@@ -37,7 +37,7 @@ const defaultReactions = [
 ];
 
 // Reaksiya ehtimoli (0.3 = 30%)
-const REACTION_PROBABILITY = 0.3;
+const REACTION_PROBABILITY = 0.6;
 
 const axios = require("axios");
 
